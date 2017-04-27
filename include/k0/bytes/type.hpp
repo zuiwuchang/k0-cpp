@@ -187,11 +187,14 @@ public:
     explicit fragmentation_t(const std::size_t size):
 		_capacity(0),_offset(0),_size(0)
     {
-       _array = boost::make_shared<bytes_t>(size);
-	   if(_array)
-	   {
+		try
+		{
+		   _array = boost::make_shared<bytes_t>(size);
 		   _capacity = size;
-	   }
+		}
+		catch(const std::bad_alloc&)
+		{
+		}
     }
 private:
 	fragmentation_t(const fragmentation_t& copy);
