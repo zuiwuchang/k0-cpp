@@ -2,8 +2,7 @@
 #ifndef KING_LIB_HEADER_EXCEPTION
 #define KING_LIB_HEADER_EXCEPTION
 
-#include <string>
-
+#define KING_EXCEPTION "[k0::exception]"
 namespace k0
 {
     /**
@@ -19,7 +18,7 @@ namespace k0
         */
         virtual const char* what() const
         {
-            return "k0::exception";
+            return KING_EXCEPTION;
         }
     };
 };
