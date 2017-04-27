@@ -1,0 +1,280 @@
+/*自定義的 調試用的 宏
+所有 宏只在 定義了 相應日誌等級 時 才工作
+在沒 定義 時 被替換為 空
+
+
+
+日誌等級
+K0_DEBUG_TRACE
+K0_DEBUG_DEBUG
+K0_DEBUG_INFO
+K0_DEBUG_FAULT
+K0_DEBUG_ERROR
+
+如果定義了 K0_DEBUG_USE_RELEASE 則 K0_DEBUG_FAULT K0_DEBUG_ERROR 被自動定義
+如果定義了 K0_DEBUG_USE_DEBUG   則 所有日誌等級 被自動定義
+
+
+
+向 debug 流 輸出 相應等級 日誌
+K0_TRACE(XXX)
+K0_DEBUG(XXX)
+K0_INFO(XXX)
+K0_FAULT(XXX)
+K0_ERROR(XXX)
+K0_FORMAT_TRACE(XXX)
+K0_FORMAT_DEBUG(XXX)
+K0_FORMAT_INFO(XXX)
+K0_FORMAT_FAULT(XXX)
+K0_FORMAT_ERROR(XXX)
+
+//輸出時 加鎖操作 默認為空
+K0_DEBUG_LOCK
+K0_DEBUG_UNLOCK
+
+
+在include前 定義 K0_DEBUG_TAG_XXX (如 K0_DEBUG_TAG_TRACE) 可以 修改 tag
+
+K0_DEBUG_SHOW_FILE   非0 顯示 代碼 文件 默認為0
+K0_DEBUG_SHOW_LINE   非0 顯示 代碼 行數 默認為0
+K0_DEBUG_SHOW_TAG    非0 顯示 日誌 等級 默認為1
+K0_DEBUG_COUT_FLUSH  非0 每次 寫入日誌後 刷新 默認為0
+
+K0_DEBUG_STREAM   日誌輸出流 默認為 std::cout
+
+
+
+//在指定 等級下 定義 一段 代碼
+K0_TRACE_SECTION(XXX)
+K0_DEBUG_SECTION(XXX)
+K0_INFO_SECTION(XXX)
+K0_FAULT_SECTION(XXX)
+K0_ERROR_SECTION(XXX)
+
+//在指定 定義了 K0_DEBUG_X 時 定義 一段 代碼
+K0_DEBUG_X_SECTION(XXX)
+*/
+#ifndef K0_LIB_HEADER_DEBUG
+#define K0_LIB_HEADER_DEBUG
+
+#include <iostream>
+#include <cstdio>
+
+
+
+#ifdef K0_DEBUG_USE_RELEASE
+#define K0_DEBUG_FAULT
+#define K0_DEBUG_ERROR
+#endif // K0_DEBUG_USE_RELEASE
+
+#ifdef K0_DEBUG_USE_DEBUG
+#define K0_DEBUG_TRACE
+#define K0_DEBUG_DEBUG
+#define K0_DEBUG_INFO
+#define K0_DEBUG_FAULT
+#define K0_DEBUG_ERROR
+#endif // K0_DEBUG_USE_DEBUG
+
+
+
+
+//數據 過濾 等級
+#define _K0_DEBUG_LV_TRACE  1
+#define _K0_DEBUG_LV_DEBUG  2
+#define _K0_DEBUG_LV_INFO   3
+#define _K0_DEBUG_LV_FAULT  4
+#define _K0_DEBUG_LV_ERROR  5
+
+#ifndef K0_DEBUG_TAG_TRACE
+#define K0_DEBUG_TAG_TRACE "[trace]"
+#endif // K0_DEBUG_TAG_TRACE
+
+#ifndef K0_DEBUG_TAG_DEBUG
+#define K0_DEBUG_TAG_DEBUG "[debug]"
+#endif // K0_DEBUG_TAG_DEBUG
+
+#ifndef K0_DEBUG_TAG_INFO
+#define K0_DEBUG_TAG_INFO "[info]"
+#endif // K0_DEBUG_TAG_INFO
+
+#ifndef K0_DEBUG_TAG_FAULT
+#define K0_DEBUG_TAG_FAULT "[fault]"
+#endif // K0_DEBUG_TAG_FAULT
+
+#ifndef K0_DEBUG_TAG_ERROR
+#define K0_DEBUG_TAG_ERROR "[error]"
+#endif // K0_DEBUG_TAG_ERROR
+
+
+
+//定義 顯示 信息
+#ifndef K0_DEBUG_SHOW_FILE    //非0 顯示 代碼 文件
+#define K0_DEBUG_SHOW_FILE 0
+#endif // K0_DEBUG_SHOW_FILE
+
+#ifndef K0_DEBUG_SHOW_LINE    //非0 顯示 代碼 行數
+#define K0_DEBUG_SHOW_LINE 0
+#endif // K0_DEBUG_SHOW_LINE
+
+#ifndef K0_DEBUG_SHOW_TAG     //非0 顯示 日誌 等級
+#define K0_DEBUG_SHOW_TAG 1
+#endif // K0_DEBUG_SHOW_TAG
+
+#ifndef K0_DEBUG_COUT_FLUSH   //非0 每次 寫入日誌後 刷新
+#define K0_DEBUG_COUT_FLUSH 0
+#endif // K0_DEBUG_COUT_FLUSH
+
+
+//定義lock
+#ifndef K0_DEBUG_LOCK
+#define K0_DEBUG_LOCK
+#endif // K0_DEBUG_LOCK
+
+#ifndef K0_DEBUG_UNLOCK
+#define K0_DEBUG_UNLOCK
+#endif // K0_DEBUG_UNLOCK
+
+
+//輸出位置
+#ifndef K0_DEBUG_STREAM
+#define K0_DEBUG_STREAM   std::cout
+#endif // K0_DEBUG_STREAM
+
+//顯示 數據
+#define _K0_DEBUG_COUT(TAG,XXX) {\
+    K0_DEBUG_LOCK\
+    if(K0_DEBUG_SHOW_FILE)K0_DEBUG_STREAM<<__FILE__<<" ";\
+    if(K0_DEBUG_SHOW_LINE)K0_DEBUG_STREAM<<"line:"<<__LINE__<<" ";\
+    if(K0_DEBUG_SHOW_TAG)K0_DEBUG_STREAM<<TAG<<"\t";\
+    if(K0_DEBUG_COUT_FLUSH)\
+        K0_DEBUG_STREAM<<XXX<<std::endl;\
+    else\
+        K0_DEBUG_STREAM<<XXX<<"\n";\
+    K0_DEBUG_UNLOCK \
+}
+
+#define _K0_DEBUG_ROUTER_COUT(TAG,LV,XXX) switch(LV){\
+    case _K0_DEBUG_LV_TRACE:_K0_DEBUG_COUT(TAG,XXX);break;\
+    case _K0_DEBUG_LV_DEBUG:_K0_DEBUG_COUT(TAG,XXX);break;\
+    case _K0_DEBUG_LV_INFO:_K0_DEBUG_COUT(TAG,XXX);break;\
+    case _K0_DEBUG_LV_FAULT:_K0_DEBUG_COUT(TAG,XXX);break;\
+    case _K0_DEBUG_LV_ERROR:_K0_DEBUG_COUT(TAG,XXX);break;\
+}
+
+//printf 輸出
+#ifndef K0_DEBUG_FORMAT_BUFFER
+#define K0_DEBUG_FORMAT_BUFFER 1024
+#endif // K0_DEBUG_FORMAT_BUFFER
+
+
+#define _K0_DEBUG_FORMAT_COUT(TAG,...) {\
+    char buf[K0_DEBUG_FORMAT_BUFFER];\
+    sprintf(buf,__VA_ARGS__ );\
+    _K0_DEBUG_COUT(TAG,buf);\
+}
+#define _K0_DEBUG_FORMAT_ROUTER_COUT(TAG,LV,...) switch(LV){\
+    case _K0_DEBUG_LV_TRACE:_K0_DEBUG_FORMAT_COUT(TAG,__VA_ARGS__);break;\
+    case _K0_DEBUG_LV_DEBUG:_K0_DEBUG_FORMAT_COUT(TAG,__VA_ARGS__);break;\
+    case _K0_DEBUG_LV_INFO:_K0_DEBUG_FORMAT_COUT(TAG,__VA_ARGS__);break;\
+    case _K0_DEBUG_LV_FAULT:_K0_DEBUG_FORMAT_COUT(TAG,__VA_ARGS__);break;\
+    case _K0_DEBUG_LV_ERROR:_K0_DEBUG_FORMAT_COUT(TAG,__VA_ARGS__);break;\
+}
+
+
+
+
+//在定義了 K0_DEBUG_TRACE 時工作
+#ifdef K0_DEBUG_TRACE
+#define K0_TRACE(XXX) _K0_DEBUG_ROUTER_COUT(K0_DEBUG_TAG_TRACE,_K0_DEBUG_LV_TRACE,XXX)
+#define K0_FORMAT_TRACE(...) _K0_DEBUG_FORMAT_ROUTER_COUT(K0_DEBUG_TAG_TRACE,_K0_DEBUG_LV_TRACE,__VA_ARGS__)
+#else
+#define K0_TRACE(XXX)
+#define K0_FORMAT_TRACE(...)
+#endif // K0_DEBUG_TRACE
+
+//在定義了 K0_DEBUG_DEBUG 時工作
+#ifdef K0_DEBUG_DEBUG
+#define K0_DEBUG(XXX) _K0_DEBUG_ROUTER_COUT(K0_DEBUG_TAG_DEBUG,_K0_DEBUG_LV_DEBUG,XXX)
+#define K0_FORMAT_DEBUG(...) _K0_DEBUG_FORMAT_ROUTER_COUT(K0_DEBUG_TAG_DEBUG,_K0_DEBUG_LV_DEBUG,__VA_ARGS__)
+#else
+#define K0_DEBUG(XXX)
+#define K0_FORMAT_DEBUG(...)
+#endif // K0_DEBUG_DEBUG
+
+//在定義了 K0_DEBUG_INFO 時工作
+#ifdef K0_DEBUG_INFO
+#define K0_INFO(XXX) _K0_DEBUG_ROUTER_COUT(K0_DEBUG_TAG_INFO,_K0_DEBUG_LV_INFO,XXX)
+#define K0_FORMAT_INFO(...) _K0_DEBUG_FORMAT_ROUTER_COUT(K0_DEBUG_TAG_INFO,_K0_DEBUG_LV_INFO,__VA_ARGS__)
+#else
+#define K0_INFO(XXX)
+#define K0_FORMAT_INFO(...)
+#endif // K0_DEBUG_INFO
+
+//在定義了 K0_DEBUG_FAULT 時工作
+#ifdef K0_DEBUG_FAULT
+#define K0_FAULT(XXX) _K0_DEBUG_ROUTER_COUT(K0_DEBUG_TAG_FAULT,_K0_DEBUG_LV_FAULT,XXX)
+#define K0_FORMAT_FAULT(...) _K0_DEBUG_FORMAT_ROUTER_COUT(K0_DEBUG_TAG_FAULT,_K0_DEBUG_LV_FAULT,__VA_ARGS__)
+#else
+#define K0_FAULT(XXX)
+#define K0_FORMAT_FAULT(...)
+#endif // K0_DEBUG_FAULT
+
+//在定義了 K0_DEBUG_ERROR 時工作
+#ifdef K0_DEBUG_ERROR
+#define K0_ERROR(XXX) _K0_DEBUG_ROUTER_COUT(K0_DEBUG_TAG_ERROR,_K0_DEBUG_LV_ERROR,XXX)
+#define K0_FORMAT_ERROR(...) _K0_DEBUG_FORMAT_ROUTER_COUT(K0_DEBUG_TAG_ERROR,_K0_DEBUG_LV_ERROR,__VA_ARGS__)
+#else
+#define K0_ERROR(XXX)
+#define K0_FORMAT_ERROR(...)
+#endif // K0_DEBUG_ERROR
+
+
+
+
+
+/*
+#ifdef K0_DEBUG_XXX
+...
+#endif
+的 簡寫模式
+*/
+#ifdef K0_DEBUG_TRACE
+#define K0_TRACE_SECTION(XXX) XXX
+#else
+#define K0_TRACE_SECTION(XXX)
+#endif // K0_DEBUG_TRACE
+
+#ifdef K0_DEBUG_DEBUG
+#define K0_DEBUG_SECTION(XXX) XXX
+#else
+#define K0_DEBUG_SECTION(XXX)
+#endif // K0_DEBUG_DEBUG
+
+#ifdef K0_DEBUG_INFO
+#define K0_INFO_SECTION(XXX) XXX
+#else
+#define K0_INFO_SECTION(XXX)
+#endif // K0_DEBUG_INFO
+
+#ifdef K0_DEBUG_FAULT
+#define K0_FAULT_SECTION(XXX) XXX
+#else
+#define K0_FAULT_SECTION(XXX)
+#endif // K0_DEBUG_FAULT
+
+#ifdef K0_DEBUG_ERROR
+#define K0_ERROR_SECTION(XXX) XXX
+#else
+#define K0_ERROR_SECTION(XXX)
+#endif // K0_DEBUG_ERROR
+
+
+
+#ifdef K0_DEBUG_X
+#define K0_DEBUG_X_SECTION(XXX) XXX
+#else
+#define K0_DEBUG_X_SECTION(XXX)
+#endif // K0_DEBUG_X
+
+
+#endif // K0_LIB_HEADER_DEBUG
