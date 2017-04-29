@@ -25,6 +25,11 @@ namespace tcp
 	typedef boost::asio::ip::tcp::acceptor acceptor_t;
 
 	/**
+	*	\brief byte 字節 定義
+	*/
+	typedef k0::byte_t byte_t;
+
+	/**
 	*	\brief 網路數據 字節數組 智能指針
 	*/
     typedef boost::shared_ptr<k0::bytes::bytes_t> bytes_spt;

@@ -9,6 +9,9 @@ namespace k0
 {
 namespace net
 {
+	/**
+	*	\brief 網路異常
+	*/
 	class exception:public k0::exception
 	{
 		virtual const char* what() const
@@ -16,6 +19,10 @@ namespace net
             return KING_NET_EXCEPTION;
         }
 	};
+
+	/**
+	*	\brief 錯誤的網路地址
+	*/
 	class bad_address:public k0::exception
 	{
 		virtual const char* what() const

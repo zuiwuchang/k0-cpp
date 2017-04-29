@@ -17,6 +17,9 @@ namespace net
 {
 namespace tcp
 {
+	/**
+	*	\brief tcp 異常
+	*/
 	class exception:public k0::net::exception
 	{
 	protected:

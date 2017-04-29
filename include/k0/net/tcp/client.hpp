@@ -19,12 +19,13 @@ namespace tcp
 	/**
 	*	\brief 使用 boost asio 完成的一個 客戶端
 	*	\param T 與 socket 綁定 的一個 自定義結構
+	*	\param N recv 緩衝區大小
 	*/
-    template<typename T>
+    template<typename T,std::size_t N=1024*4>
     class client_t
     {
-    protected:
-		/**
+	public:
+    	/**
 		*	\brief socket 定義
 		*/
         typedef socket_t<T> socket_t;
@@ -32,7 +33,7 @@ namespace tcp
 		*	\brief socket 智能指針
 		*/
         typedef boost::shared_ptr<socket_t> socket_spt;
-
+	protected:
 		
         /**
 		*	\brief asio 服務
@@ -55,11 +56,19 @@ namespace tcp
         }
     public:
 		/**
+		*	\brief 返回socket
+		*/
+		socket_spt socket()
+		{
+			return _socket;
+		}
+
+		/**
 		*	\brief 構造 client 並連接到指定 地址
 		*	\param addr 形如 dns:port 的服務器 地址
 		*	\return throw k0::net::bad_address k0::net::tcp::exception
 		*/
-        explicit client_t(const std::string& addr,const std::size_t buffer = 1024 * 4)
+        explicit client_t(const std::string& addr)
         {
 			//驗證 地址
 			std::string::size_type find = addr.find_last_of(':');
@@ -107,7 +116,7 @@ namespace tcp
             bytes_spt buf;
 			try
 			{
-			   buf = boost::make_shared<k0::bytes::bytes_t>(buffer);
+			   buf = boost::make_shared<k0::bytes::bytes_t>(N);
 			}
 			catch(const std::bad_alloc& e)
 			{
@@ -136,15 +145,26 @@ namespace tcp
             _threads.join_all();
         }
 		/**
-		*	\brief 子類實現 當和服務器斷開時回調
+		*	\brief 子類實現 當和服務器斷開前回調
 		*/
 		virtual void on_close()
 		{
 		}
 		/**
 		*	\brief 子類實現 當接收到數據時回調
+		*	\param b 數據緩衝區
+		*	\param n 數據長度
+		*	\return	true 數據處理完畢 false 數據錯誤 斷開連接
 		*/
-		virtual bool on_recv()
+		virtual bool on_recv(byte_t* b,std::size_t n)
+		{
+			return true;
+		}
+		/**
+		*	\brief 子類實現 當數據發送成功後 回調
+		*	\param buffer 被發送的 數據
+		*/
+		virtual void on_send(bytes_spt& buffer)
 		{
 		}
     protected:
@@ -161,11 +181,13 @@ namespace tcp
                 boost::asio::placeholders::bytes_transferred)
             );
         }
-		
+		/**
+		*	\brief 讀取處理器
+		*/
         void post_recv_handler(const boost::system::error_code& e,bytes_spt buffer,std::size_t n)
         {
-           if(e)
-            {
+			if(e)
+			{
                 //通知 用戶
                 on_close();
                 
@@ -178,36 +200,50 @@ namespace tcp
                 }
                 return;
             }
-		    /*
+		    
             //通知 用戶
-            if(_recv_bf)
-            {
-                _recv_bf(this,s,buffer->get(),n);
-            }
-			*/
+			if(!on_recv(buffer->get(),n))
+			{
+				//協議錯誤 直接斷開連接
+
+				//通知 用戶
+                on_close();
+
+				//錯誤 斷開
+                if(_socket->socket().is_open())
+                {
+                    boost::system::error_code e0;
+                    _socket->socket().close(e0);
+                }
+				return;
+			}
+			
             //投遞 新的 recv
             post_recv(buffer);
         }
-
     public:
   
-		/*
-        //返回 工作 線程 數量
+		/**
+		*	\brief 返回 工作 線程 數量
+		*/
         inline std::size_t work_threads()const
         {
             return _threads.size();
         }
-
-        //等待 線程 停止 工作
+		/**
+		*	\brief 等待 線程 停止 工作
+		*/
         inline void join()
         {
             _threads.join_all();
         }
-
-        //向 服務器 發送 隊列 寫入一條 發送 數據
-        bool push_back_write(socket_spt s,const byte_t* bytes,std::size_t n)
+		
+		/**
+		*	\brief 向 發送 隊列 寫入一條 發送 數據
+		*/
+        bool push_send(const byte_t* bytes,std::size_t n)
         {
-            if(!s->socket().is_open())
+            if(!_socket->socket().is_open())
             {
                 return false;
             }
@@ -216,12 +252,7 @@ namespace tcp
             bytes_spt buffer;
             try
             {
-                buffer = std::make_shared<king::bytes::bytes_t>(n);
-                if(buffer->empty())
-                {
-                    //創建 失敗
-                    return false;
-                }
+                buffer = boost::make_shared<k0::bytes::bytes_t>(n);
             }
             catch(const std::bad_alloc&)
             {
@@ -231,18 +262,22 @@ namespace tcp
             //copy 待write 數據
             std::copy(bytes,bytes+n,buffer->get());
 
-            return push_back_write(s,buffer);
+            return push_send(buffer);
         }
-        bool push_back_write(socket_spt s,bytes_spt buffer)
+		/**
+		*	\brief 向 發送 隊列 寫入一條 發送 數據
+		*/
+        bool push_send(bytes_spt buffer)
         {
+			socket_spt& s = _socket;
             if(!s->socket().is_open())
             {
                 return false;
             }
 
             boost::mutex::scoped_lock lock(s->_mutex);
-            auto& datas = s->_datas;
-            auto& wait = s->wait;
+            std::list<bytes_spt>& datas = s->_datas;
+            bool& wait = s->_wait;
 
             //等待 上次 write 完成 直接 push
             if(wait)
@@ -257,7 +292,7 @@ namespace tcp
                 if(datas.empty())
                 {
                     //直接 write
-                    post_write(s,buffer);
+                    post_send(buffer);
                     wait = true;
                     return true;
                 }
@@ -271,7 +306,7 @@ namespace tcp
                         //發送 隊列 首數據
                         buffer = datas.front();
                         datas.pop_front();
-                        post_write(s,buffer);
+                        post_send(buffer);
                         wait = true;
                         return true;
                     }
@@ -286,19 +321,25 @@ namespace tcp
             return false;
         }
     protected:
-        inline void post_write(socket_spt s,bytes_spt buffer)
+		/**
+		*	\brief 異步發送數據
+		*/
+        inline void post_send(bytes_spt buffer)
         {
-            s->socket().async_write_some(boost::asio::buffer(buffer->get(),buffer->size()),
-                boost::bind(&client_t::post_write_handler,
+            _socket->socket().async_write_some(boost::asio::buffer(buffer->get(),buffer->size()),
+                boost::bind(&client_t::post_send_handler,
                 this,
                 boost::asio::placeholders::error,
-                s,
                 buffer
                 )
             );
         }
-        void post_write_handler(const boost::system::error_code& e,socket_spt s,bytes_spt buffer)
+		/**
+		*	\brief 發送處理器
+		*/
+        void post_send_handler(const boost::system::error_code& e,bytes_spt buffer)
         {
+			socket_spt& s = _socket;
             if(e)
             {
                 //send 錯誤 直接 關閉
@@ -311,27 +352,24 @@ namespace tcp
             }
 
             //通知 客戶
-            if(_send_bf)
-            {
-                _send_bf(this,s,buffer);
-            }
+            on_send(buffer);
 
 
             boost::mutex::scoped_lock lock(s->_mutex);
-            auto& datas = s->_datas;
+            std::list<bytes_spt>& datas = s->_datas;
             if(datas.empty())
             {
-                //接受 數據 發送
-                s->wait = false;
+                //可以接受 發送 數據 
+                s->_wait = false;
                 return;
             }
             //繼續 發送 數據
             buffer = datas.front();
             datas.pop_front();
-            post_write(s,buffer);
+            post_send(buffer);
 
         }
-		*/
+		
     };
 
 
