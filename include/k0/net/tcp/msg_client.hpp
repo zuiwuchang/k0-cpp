@@ -79,11 +79,6 @@ namespace tcp
         explicit msg_client_t(const std::string& addr,std::size_t header_size=4,reader_header_bft reader_header_bf=boost::bind(&msg_client_t::reader_header,_1,_2))
 			:client_t(addr),_header_size(header_size),_reader_header_bf(reader_header_bf),_buffer(N),_size(KING_NET_TCP_WAIT_MSG_HEADER),_header(NULL)
         {
-			if(_buffer.size() != N)
-			{
-				KING_NET_TCP_THROW_STR("bad alloc recv buffer");
-			}
-
 			try
 			{
 				_header = new byte_t[header_size];
@@ -154,7 +149,7 @@ namespace tcp
 
 						//解析 消息頭
 						_size = _reader_header_bf(_header,_header_size);
-						if(_size == KING_NET_TCP_ERROR_MSG && _size < _header_size)
+						if(_size == KING_NET_TCP_ERROR_MSG || _size < _header_size)
 						{
 							return false;
 						}
