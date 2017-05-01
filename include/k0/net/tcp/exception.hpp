@@ -11,6 +11,12 @@
 	emsg += e.what();\
 	throw exception(emsg);\
 }
+#define KING_NET_TCP_THROW_STR(str) {\
+	std::string emsg(KING_NET_TCP_EXCEPTION);\
+	emsg += " ";\
+	emsg += str;\
+	throw exception(emsg);\
+}
 namespace k0
 {
 namespace net

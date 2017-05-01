@@ -1,6 +1,8 @@
 #ifndef KING_LIB_HEADER_NET_TCP_TYPE
 #define KING_LIB_HEADER_NET_TCP_TYPE
 
+
+
 #include <k0/bytes/type.hpp>
 
 #include <boost/asio.hpp>
@@ -41,7 +43,7 @@ namespace tcp
 	*	不要使用此結構的 任何 public 成員 這是爲 內部設計的 否則可能將引發未定義行爲\n
 	*	要操作 此 class 始終應該調用其 public function
 	*/
-    template<typename T>
+    template<typename T,typename TP=std::size_t>
     class socket_t
     {
     protected:
@@ -59,6 +61,11 @@ namespace tcp
 		*/
         T _user;
     public:
+		/**
+		*	\brief 內部使用的 綁定的 自定義結構
+		*/
+        TP _tp;
+
 		/**
 		*	\brief 構造 socket
 		*/

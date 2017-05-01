@@ -107,7 +107,7 @@ namespace tcp
 		*	\param msg 數據緩衝區
 		*	\return	true 數據處理完畢 false 數據錯誤 斷開連接
 		*/
-		virtual bool on_msg(bytes_spt buffer)
+		virtual bool on_msg(bytes_spt& msg)
 		{
 			return true;
 		}

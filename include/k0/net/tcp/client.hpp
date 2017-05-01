@@ -4,7 +4,7 @@
 #include "type.hpp"
 #include "exception.hpp"
 
-#include <boost/function.hpp>
+
 #include <boost/bind.hpp>
 #include <boost/lexical_cast.hpp>
 
@@ -130,7 +130,14 @@ namespace tcp
 
 
 			//啓動工作線程
-            _threads.add_thread(new boost::thread(boost::bind(&client_t::work_thread,this)));
+			try
+			{
+				_threads.add_thread(new boost::thread(boost::bind(&client_t::work_thread,this)));
+			}
+			catch(const std::bad_alloc& e)
+			{
+				KING_NET_TCP_THROW(e);
+			}
         }
 	private:
         client_t& operator=(const client_t&);
