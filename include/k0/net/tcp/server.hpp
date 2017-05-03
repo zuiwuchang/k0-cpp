@@ -208,7 +208,7 @@ namespace tcp
 		virtual void on_send(socket_spt& s,bytes_spt& buffer)
 		{
 		}
-	protected:
+	public:
 		/**
 		*	\brief 返回 最大 接受連接數
 		*/
@@ -223,7 +223,7 @@ namespace tcp
 		{
 			_max = n;
 		}
-
+	protected:
 		/**
 		*	\brief 異步接受連接
 		*/
@@ -297,7 +297,7 @@ namespace tcp
             }
 			
 			//超過 最大連接 不再 接受新連接
-			if(_conns >= _max)
+			if(_max && _conns >= _max)
 			{
 				//關閉 連接 釋放資源
 				boost::system::error_code e0;
@@ -399,9 +399,16 @@ namespace tcp
         /**
 		*	\brief 等待 線程 停止 工作
 		*/
-        inline void join()
+        virtual void join()
         {
             _threads.join_all();
+        }
+		/**
+		*	\brief 停止 工作
+		*/
+        virtual void stop()
+        {
+            _io_s.stop();
         }
 		/**
 		*	\brief 向 客戶端 發送 隊列 寫入一條 發送 數據

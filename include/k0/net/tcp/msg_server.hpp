@@ -88,7 +88,7 @@ namespace tcp
 		*	\return throw k0::net::bad_address k0::net::tcp::exception
 		*/
         explicit msg_server_t(const std::string& addr,const std::size_t conns=1024,std::size_t header_size=4,reader_header_bft reader_header_bf=boost::bind(&msg_server_t::reader_header,_1,_2))
-			:server_t(addr,conns)
+			:server_t(addr,conns),_header_size(header_size),_reader_header_bf(reader_header_bf)
         {
 			
         }
@@ -138,15 +138,15 @@ namespace tcp
 				//解析消息
 				while(true)
 				{
-					std::size_t size = buffer.size();
-					if(!size)
+					std::size_t size_buffer = buffer.size();
+					if(!size_buffer)
 					{
 						break;
 					}
 					//解析消息頭
 					if(KING_NET_TCP_WAIT_MSG_HEADER == size)
 					{
-						if(size < _header_size)
+						if(size_buffer < _header_size)
 						{
 							//等待消息頭
 							return true;
@@ -172,7 +172,7 @@ namespace tcp
 					
 
 					//獲取 body
-					if(size < size)
+					if(size < size_buffer)
 					{
 						//等待 body
 						return true;
@@ -184,7 +184,7 @@ namespace tcp
 					{
 						return false;
 					}
-					if(msg->size() != buffer.read(msg->get(),msg->size()))
+					if(size != buffer.read(msg->get(),size))
 					{
 						return false;
 					}
