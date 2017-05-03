@@ -172,7 +172,7 @@ namespace tcp
 					
 
 					//獲取 body
-					if(size < size_buffer)
+					if(size_buffer < size)
 					{
 						//等待 body
 						return true;
